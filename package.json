@@ -1,7 +1,16 @@
 {
-  "name": "hardhat-project",
+  "name": "fhe-contract-example",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.4"
+    "dotenv": "^16.4.5",
+    "ethers": "^6.12.1",
+    "fhevm": "^0.3.0",
+    "fhevmjs": "^0.3.2",
+    "hardhat": "^2.22.4",
+    "lodash": "^4.17.21",
+    "mocha": "^10.4.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.2"
   }
 }
