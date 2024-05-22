@@ -1,16 +1,60 @@
 {
   "name": "fhe-contract-example",
+  "description": "fhEVM hardhat template",
+  "author": {
+    "name": "T4E",
+    "url": "https://docs.t4e.xyz/"
+  },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "dotenv": "^16.4.5",
-    "ethers": "^6.12.1",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.6",
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "@nomicfoundation/hardhat-verify": "^1.0.0",
+    "@trivago/prettier-plugin-sort-imports": "^4.0.0",
+    "@typechain/ethers-v6": "^0.4.0",
+    "@typechain/hardhat": "^8.0.0",
+    "@types/chai": "^4.3.4",
+    "@types/fs-extra": "^9.0.13",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^18.11.9",
+    "@typescript-eslint/eslint-plugin": "^5.44.0",
+    "@typescript-eslint/parser": "^5.44.0",
+    "chai": "^4.3.7",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.0.3",
+    "eslint": "^8.28.0",
+    "eslint-config-prettier": "^8.5.0",
+    "ethers": "^6.8.0",
     "fhevm": "^0.3.0",
     "fhevmjs": "^0.3.2",
-    "hardhat": "^2.22.4",
+    "fs-extra": "^10.1.0",
+    "hardhat": "^2.18.1",
+    "hardhat-deploy": "^0.11.29",
+    "hardhat-gas-reporter": "^1.0.9",
     "lodash": "^4.17.21",
-    "mocha": "^10.4.0"
+    "mocha": "^10.1.0",
+    "node-tfhe": "^0.5.1",
+    "prettier": "^2.8.4",
+    "prettier-plugin-solidity": "^1.1.2",
+    "rimraf": "^4.1.2",
+    "solhint": "^3.4.0",
+    "solhint-plugin-prettier": "^0.0.5",
+    "solidity-coverage": "^0.8.2",
+    "ts-generator": "^0.1.1",
+    "ts-node": "^10.9.1",
+    "@types/inquirer": "^9.0.7",
+    "typescript": "^5.1.6",
+    "inquirer": "^8.2.6"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.2"
+  },
+  "resolutions": {
+    "node-tfhe": "0.5.1"
+  },
+  "scripts": {
+    "clean": "rimraf ./artifacts ./cache ./coverage ./types ./coverage.json && pnpm typechain",
+    "compile": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat compile"
   }
 }
