@@ -1,0 +1,56 @@
+[
+    {
+        "image": "angry-cat.png",
+        "name": "Angry Cat",
+        "symbol": "AgCNFT",
+        "description": "This cat is angry. It's probably because you're not petting it.",
+        "uri": "https://i.imgur.com/TRJfML7.png"
+    },
+    {
+        "image": "golden-ape.png",
+        "name": "Golden Ape",
+        "description": "A collection of cartoon apes, each with its own unique expression and accessories, in the style of the popular Bored Ape Yacht Club NFTs."
+    },
+    {
+        "image": "golden-dragon-egg.png",
+        "name": "Golden Dragon Egg",
+        "description": "The Golden Dragon Egg NFT is a unique digital collectible that embodies the mystique and allure of mythical dragons. Owners of this NFT hold a rare and valuable piece of digital art, representing not just an egg, but the potential for growth, transformation, and untold stories."
+    },
+    {
+        "image": "fire-dragon-egg.png",
+        "name": "Fire Dragon Egg",
+        "description": "The Red Dragon Egg NFT is a unique digital collectible that embodies the mystique and allure of mythical dragons. Owners of this NFT hold a rare and valuable piece of digital art, representing not just an egg, but the potential for growth, transformation, and untold stories."
+    },
+    {
+        "image": "sumo.png",
+        "name": "Sumo",
+        "description": "Sumo is a collection of 10,000 unique Sumo wrestlers on the Ethereum blockchain. Each Sumo is unique and programmatically generated from over 150 traits, including body, face, and clothing."
+    },
+    {
+        "image": "twintail-hair.png",
+        "name": "Twintail Hair",
+        "description": "A masterpiece of anime art featuring a beautiful girl with twintail hair, wearing an intricate and detailed anime costume. The artwork is of the highest quality, with intricate details and vibrant colors."
+    },
+    {
+        "image": "china-picture.png",
+        "name": "Traditional Chinese Landscape",
+        "description": "A scene from ancient mythologies filled with immortal martial arts legends. The backdrop is inspired by traditional Chinese landscape scrolls, depicting serene mountains, meandering rivers, and lush greenery. Classical architecture structures like pagodas and temples adorn the scene, their ornate designs bathed in the soft light of dawn."
+    },
+    {
+        "image": "cyber-punk-car.png",
+        "name": "Cyberpunk Car",
+        "description": "A highly detailed digital painting of a futuristic city in the style of Cyberpunk 2049, featuring neon lights, skyscrapers, and flying cars."
+    },
+    {
+        "image": "mu.png",
+        "name": "Mu",
+        "description": "A cartoon style NFT featuring the jokest English football club."
+    },
+    {
+        "image": "angry-pikachu.png",
+        "name": "Angry Pikachu",
+        "symbol": "AGPikachu",
+        "description": "A Pika-themed Pokemon NFT, featuring a cute and mischievous Pikachu character with vibrant colors and a unique design.",
+        "uri": "https://i.imgur.com/ThccgIT.jpeg"
+    }
+]

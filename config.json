@@ -1,0 +1,12 @@
+{
+  "NFT": {
+    "AgCNFT": {
+      "address": "0x1671c153f5ED9920D28d71A0D7Fc0BEc455D6d71",
+      "name": "Angry Cat"
+    },
+    "AGPikachu": {
+      "address": "0x0642ee7429e94E340BD9B58e7b8452b292DE7662",
+      "name": "Angry Pikachu"
+    }
+  }
+}
