@@ -1,5 +1,19 @@
 [
     {
+        "image": "angry-cat.png",
+        "name": "Angry Cat",
+        "symbol": "AgCNFT",
+        "uri": "https://i.imgur.com/TRJfML7.png",
+        "description": "This cat is angry. It's probably because you're not petting it."
+    },
+    {
+        "image": "angry-pikachu.png",
+        "name": "Angry Pikachu",
+        "symbol": "AGPikachu",
+        "uri": "https://i.imgur.com/ThccgIT.jpeg",
+        "description": "A Pika-themed Pokemon NFT, featuring a cute and mischievous Pikachu character with vibrant colors and a unique design."
+    },
+    {
         "image": "golden-ape.png",
         "name": "Golden Ape",
         "symbol": "GoANFT",

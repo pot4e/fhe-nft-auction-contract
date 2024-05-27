@@ -28,7 +28,7 @@ import * as _ from 'lodash';
             });
             fs.writeFileSync(configContractPath, JSON.stringify(config, null, 2));
             console.log("Config updated");
-            for (let index = 0; index < 10; index++) {
+            for (let index = 0; index < _.sample([1,2]); index++) {
                 const tokenId1 = await contract.mint("0xde67caf68b7dd990a7a0d2929544e81368b20e7e");
                 const tokenId2 = await contract.mint("0xe1e2f280b01cad3c75b225092e8ca37674bc8163");
                 console.log("Minted token with id: ", tokenId1.toString(), " and ", tokenId2.toString());
