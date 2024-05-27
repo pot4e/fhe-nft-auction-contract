@@ -7,34 +7,36 @@ import fs from 'fs';
 import path from 'path';
 import * as _ from 'lodash';
 
-const symbol = process.env.symbol;
-const name = process.env.name;
-const uri = process.env.uri;
-
-if (!symbol || !name || !uri) {
-    console.error("Please provide a name, symbol and URI for the NFT");
-    process.exit(1);
-}
-
 (async () => {
-    const [owner] = await hre.ethers.getSigners();
-
-    const contractFactory = await ethers.getContractFactory("IncoNFT");
-    console.log("Deploying Inco NFT with name: ", name, " symbol: ", symbol, " uri: ", uri);
-    try {
-        const contract = await contractFactory.connect(owner).deploy(name, symbol, uri);
-        await contract.waitForDeployment();
-        console.log("Inco NFT sample deployed to: ", await contract.getAddress());
-        console.log("Start updating config");
-        const configContractPath = path.resolve(__dirname, '../config.json');
-        const config = JSON.parse(fs.readFileSync(configContractPath).toString());
-        _.set(config, `NFT.${symbol}`, {
-            address: await contract.getAddress(),
-            name: name
-        });
-        fs.writeFileSync(configContractPath, JSON.stringify(config, null, 2));
-        console.log("Config updated");
-    } catch (e) {
-        console.error("Error deploying Inco NFT: ", e);
+    const deployInfo = fs.readFileSync(path.resolve(__dirname, '../NFTSamples.json'));
+    const deployInfoJson = JSON.parse(deployInfo.toString()) as Array<{ name: string, symbol: string, uri: string }>;
+    for (let index = 0; index < deployInfoJson.length; index++) {
+        const { name, symbol, uri } = deployInfoJson[index];
+        try {
+            const [owner] = await hre.ethers.getSigners();
+            const contractFactory = await ethers.getContractFactory("IncoNFT");
+            console.log("Deploying Inco NFT with name: ", name, " symbol: ", symbol, " uri: ", uri);
+            const contract = await contractFactory.connect(owner).deploy(name, symbol, uri);
+            await contract.waitForDeployment();
+            console.log("Inco NFT sample deployed to: ", await contract.getAddress());
+            console.log("Start updating config");
+            const configContractPath = path.resolve(__dirname, '../config.json');
+            const config = JSON.parse(fs.readFileSync(configContractPath).toString());
+            _.set(config, `NFT.${symbol}`, {
+                address: await contract.getAddress(),
+                name: name
+            });
+            fs.writeFileSync(configContractPath, JSON.stringify(config, null, 2));
+            console.log("Config updated");
+            for (let index = 0; index < 10; index++) {
+                const tokenId1 = await contract.mint("0xde67caf68b7dd990a7a0d2929544e81368b20e7e");
+                const tokenId2 = await contract.mint("0xe1e2f280b01cad3c75b225092e8ca37674bc8163");
+                console.log("Minted token with id: ", tokenId1.toString(), " and ", tokenId2.toString());
+            }
+        } catch (e) {
+            console.error("Error deploying Inco NFT: ", e);
+        }
     }
+
+
 })()
