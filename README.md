@@ -33,13 +33,6 @@ pnpm typechain
 ```
 (For more control over the deployment process, you can rewrite the deployment script (deploy.ts) and use the command
 `npx hardhat run scripts/deploy.ts --network inco` to deploy your contracts.)
-### Test
-
-Run the tests with Hardhat:
-
-```sh
-npx hardhat test --network inco
-```
 
 ### Deploy
 
@@ -53,3 +46,17 @@ Deploy the BlindAuction to Inco Gentry Testnet Network:
 ```sh
 npx hardhat run deploy/BlindAuction.ts --network inco 
 ```
+
+### Test
+
+Run the tests with Hardhat:
+
+```sh
+npx hardhat test --network inco
+```
+
+Run Blind Client Test
+
+```sh
+ ts-node test/BlindAuctionClient.ts 
+ ```

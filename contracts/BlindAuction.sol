@@ -30,6 +30,7 @@ contract BlindAuction is EIP712WithModifier {
     }
     struct NFT {
         address postOwner;
+        IERC721 nft;
         uint256 tokenId;
         uint256 endTime;
         uint256 bidConters;
@@ -327,6 +328,7 @@ contract BlindAuction is EIP712WithModifier {
         return
             NFT({
                 postOwner: nftPostOwner[nft][tokenId],
+                nft: nft,
                 tokenId: tokenId,
                 endTime: nftEndTime[nft][tokenId],
                 bidConters: counters[nft][tokenId]
