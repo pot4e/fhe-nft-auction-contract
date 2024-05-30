@@ -40,5 +40,7 @@
       "address": "0x9e43eC76D450908b921C7f386116b082d5B9c264",
       "name": "Mu"
     }
-  }
+  },
+  "ERC20": "0x8bC0Cc0783255Bc2A451b04C3850fA82a3e88C27",
+  "BLIND_AUCTION": "0xcE7c98CBaF2Bcc539fbd94bfD0Cec2B3BeFaEDee"
 }
