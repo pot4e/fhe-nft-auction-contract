@@ -414,7 +414,6 @@ contract BlindAuction is EIP712WithModifier {
     ) internal view returns (bool) {
         return
             nftPostOwner[nft][tokenId] == postAddress &&
-            highestBidder[nft][tokenId] == address(0) &&
             isNFTBidEnded(nft, tokenId);
     }
 
