@@ -9,7 +9,7 @@ import abiJson from "../artifacts/contracts/BlindAuction.sol/BlindAuction.json";
 import nftABIJson from "../test/erc721Abi.json";
 import erc20ABI from "../test/erc20Abi.json";
 const provider = new ethers.JsonRpcProvider("https://testnet.inco.org");
-const BLIND_DURATION = 24 * 60 * 60 * 1000;
+const BLIND_DURATION = 1 * 60;
 let instance: FhevmInstance;
 const wallets = [
     new ethers.Wallet(process.env.PRIVATE_KEY_1 as string, provider),
@@ -141,16 +141,14 @@ async function postNFT() {
     ])
     const { nft, tokenId } = await inquirer.prompt([
         {
-            type: 'number',
+            type: 'string',
             name: 'nft',
             message: 'NFT Contract Address:',
-            default: process.env.ERC_721,
         },
         {
             type: 'number',
             name: 'tokenId',
-            message: 'Token ID:',
-            default: 1,
+            message: 'Token ID:'
         },
     ])
     const wallet = wallets.find((wallet) => wallet.address === address);
@@ -178,18 +176,11 @@ async function bidNFT() {
             choices: wallets.map((wallet) => wallet.address),
         },
     ])
-    const { nft, tokenId, amount } = await inquirer.prompt([
-        {
-            type: 'input',
-            name: 'nft',
-            message: 'NFT Contract Address:',
-            default: process.env.ERC_721,
-        },
+    const { nft, amount } = await inquirer.prompt([
         {
             type: 'number',
-            name: 'tokenId',
-            message: 'Token ID:',
-            default: 1,
+            name: 'nft',
+            message: 'NFT Post ID',
         },
         {
             type: 'number',
@@ -209,7 +200,7 @@ async function bidNFT() {
     await txApproval.wait();
 
     const contract = new ethers.Contract(blindContract, abiJson.abi, wallet);
-    const tx = await contract.bid(nft, tokenId, encryptedAmount);
+    const tx = await contract.bid(nft, encryptedAmount);
     await tx.wait();
     console.info("Bid placed", tx.hash);
 }
@@ -249,6 +240,31 @@ async function transferToken() {
     await tx.wait();
     console.info("Transfer completed", tx.hash);
 }
+
+async function checkClaimPost() {
+    const { address } = await inquirer.prompt([
+        {
+            type: 'rawlist',
+            name: 'address',
+            message: 'Select Wallet:',
+            default: wallets[0].address,
+            choices: wallets.map((wallet) => wallet.address),
+        },
+    ])
+    const wallet = wallets.find((wallet) => wallet.address === address);
+    if (!wallet) {
+        console.error('Wallet not found');
+        return;
+    }
+    const contract = new ethers.Contract(blindContract, abiJson.abi, wallet);
+    const data = await contract.isClaimable();
+    console.log(data);
+    if (data) {
+        const tx = await contract.claimAllNFT();
+        await tx.wait();
+        console.log("Claimed: ", tx.hash);
+    }
+}
 async function main() {
     await createFhevmInstance();
     const { task } = await inquirer.prompt([
@@ -258,6 +274,7 @@ async function main() {
             message: 'Blind Auction NFT:',
             default: 'Buy Username',
             choices: [
+                'Check Claim Post',
                 'Explore Binding NFTs',
                 'Explore Ending NFTs',
                 'Post a NFT to bid',
@@ -289,6 +306,9 @@ async function main() {
             break
         case 'Transfer ERC20 Encrypted Token':
             await transferToken();
+            break
+        case 'Check Claim Post':
+            await checkClaimPost();
             break
         default:
             break;

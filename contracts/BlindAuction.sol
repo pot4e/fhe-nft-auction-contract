@@ -12,61 +12,61 @@ contract BlindAuction is EIP712WithModifier {
 
     EncryptedERC20 public paymentToken;
 
+    uint public bidCounters;
+    uint public postCounters;
+
     struct BidData {
+        uint nftPostCounter;
         address bidder;
         IERC721 nft;
         uint256 tokenId;
         euint32 amount;
-        uint256 timstamp;
+        uint256 bidTime;
     }
 
     struct BidDataStatus {
+        uint nftPostCounter;
         address bidder;
         IERC721 nft;
         uint256 tokenId;
         bytes amount;
-        uint256 timstamp;
+        uint256 bidTime;
         bool isWinner;
     }
-
     struct BidSatus {
+        uint nftPostCounter;
         IERC721 nft;
         uint256 tokenId;
         bool isWinner;
     }
 
     struct NFT {
+        uint postCounter;
         address postOwner;
         IERC721 nft;
         uint256 tokenId;
         uint256 endTime;
         uint256 bidConters;
     }
-    // Manager POST NFT
-    IERC721[] public postNFTs;
-    mapping(IERC721 => bool) isAddedPostNFTContract;
-    mapping(IERC721 => mapping(uint256 => bool)) isAddedPostNFTid;
-    mapping(IERC721 => uint256[]) public tokenIds;
-    // Manager User
-    // Set Bid -> nft address => tokenId => endTime
-    mapping(IERC721 => mapping(uint256 => uint256)) internal nftEndTime;
-    // Get user nfId => tokenId => user
-    mapping(IERC721 => mapping(uint256 => address)) internal nftPostOwner;
-    // user address => address => BidData[]
-    mapping(address => BidData[]) public bidUsers;
-    // user address => nft address => tokenId => bidAmount
-    mapping(address => mapping(IERC721 => mapping(uint256 => euint32)))
-        internal bidAmount;
+    // NFT
+    mapping(uint => NFT) public postOwner;
+    mapping(address => uint[]) public listPostCounter;
     mapping(address => mapping(IERC721 => mapping(uint256 => bool)))
-        internal isBiddedNFT;
-    // nfId => nftaddres => tokenId => address
-    mapping(IERC721 => mapping(uint256 => address)) public highestBidder;
-    // nftId => amount
-    mapping(IERC721 => mapping(uint256 => euint32)) public highestBid;
-    // NFT => tokenId => manual end bid
-    mapping(IERC721 => mapping(uint256 => bool)) public manualEndBid;
-    // NFT => tokenId => counter
-    mapping(IERC721 => mapping(uint256 => uint256)) public counters;
+        public isPostNFT;
+
+    // BID
+    mapping(uint => BidData) public bidOwner;
+    mapping(address => uint[]) public listBidCounter;
+    mapping(address => mapping(uint => bool)) public isBidNFT;
+
+    // Mangger Highest Bid
+    mapping(uint => address) public highestBidder;
+    mapping(uint => euint32) public highestBidAmount;
+
+    // Claim Status
+    mapping(uint => address) public postOwnerClaimed;
+    mapping(uint => address) public winnerClaimed;
+    mapping(uint => mapping(address => bool)) public isLoserRefund;
 
     error TooEarly(uint256 time);
 
@@ -79,21 +79,23 @@ contract BlindAuction is EIP712WithModifier {
     ) EIP712WithModifier("Authorization token", "1") {
         paymentToken = _paymentToken;
         owner = msg.sender;
+        bidCounters = 0;
+        postCounters = 0;
     }
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
         _;
     }
-    modifier onlyBeforeEnd(IERC721 nft, uint256 tokenId) {
-        if (block.timestamp >= nftEndTime[nft][tokenId])
-            revert TooLate(nftEndTime[nft][tokenId]);
+    modifier onlyBeforeEnd(uint _nftPostCounter) {
+        if (block.timestamp >= postOwner[_nftPostCounter].endTime)
+            revert TooLate(postOwner[_nftPostCounter].endTime);
         _;
     }
 
-    modifier onlyAfterEnd(IERC721 nft, uint256 tokenId) {
-        if (block.timestamp <= nftEndTime[nft][tokenId])
-            revert TooEarly(nftEndTime[nft][tokenId]);
+    modifier onlyAfterEnd(uint _nftPostCounter) {
+        if (block.timestamp <= postOwner[_nftPostCounter].endTime)
+            revert TooLate(postOwner[_nftPostCounter].endTime);
         _;
     }
 
@@ -103,199 +105,108 @@ contract BlindAuction is EIP712WithModifier {
         uint256 duration
     ) external {
         require(duration > 0, "Duration must be greater than 0");
-        require(nftPostOwner[nft][tokenId] == address(0), "NFT id already set");
+        require(!isPostNFT[msg.sender][nft][tokenId], "NFT id already set");
         require(
             nft.ownerOf(tokenId) == msg.sender,
             "Your are not owner of this NFT"
         );
         nft.transferFrom(msg.sender, address(this), tokenId);
-        if (!isAddedPostNFTContract[nft]) {
-            isAddedPostNFTContract[nft] = true;
-            postNFTs.push(nft);
-        }
-        if (!isAddedPostNFTid[nft][tokenId]) {
-            isAddedPostNFTid[nft][tokenId] = true;
-            tokenIds[nft].push(tokenId);
-        }
-        nftEndTime[nft][tokenId] = block.timestamp + duration;
-        nftPostOwner[nft][tokenId] = msg.sender;
+        isPostNFT[msg.sender][nft][tokenId] = true;
+        postCounters++;
+        listPostCounter[msg.sender].push(postCounters);
+        postOwner[postCounters] = NFT({
+            postCounter: postCounters,
+            postOwner: msg.sender,
+            nft: nft,
+            tokenId: tokenId,
+            endTime: block.timestamp + duration,
+            bidConters: 0
+        });
     }
 
     function bid(
-        IERC721 nft,
-        uint256 tokenId,
+        uint _nftPostCounter,
         bytes calldata encryptedValue
-    ) public onlyBeforeEnd(nft, tokenId) {
-        require(nftPostOwner[nft][tokenId] != msg.sender, "Owner can't bid");
-        require(nftPostOwner[nft][tokenId] != address(0), "Invalid token id");
+    ) public onlyBeforeEnd(_nftPostCounter) {
         require(
-            !isBiddedNFT[msg.sender][nft][tokenId],
+            postOwner[_nftPostCounter].postOwner != msg.sender,
+            "Owner can't bid"
+        );
+        require(
+            postOwner[_nftPostCounter].postOwner != address(0),
+            "Invalid token id"
+        );
+        require(
+            !isBidNFT[msg.sender][_nftPostCounter],
             "User already bid for this NFT"
         );
+        // Save Bid info
+        isBidNFT[msg.sender][_nftPostCounter] = true;
         euint32 value = TFHE.asEuint32(encryptedValue);
-        bidAmount[msg.sender][nft][tokenId] = value;
-        isBiddedNFT[msg.sender][nft][tokenId] = true;
-        bidUsers[msg.sender].push(
-            BidData({
-                bidder: msg.sender,
-                nft: nft,
-                tokenId: tokenId,
-                amount: value,
-                timstamp: block.timestamp
-            })
-        );
-        // transfer token to contract
-        paymentToken.transferFrom(msg.sender, address(this), value);
-        // Update counter
-        counters[nft][tokenId] = counters[nft][tokenId] + 1;
-        // Update highest bid
-        euint32 currentHightestBid = highestBid[nft][tokenId];
+        bidCounters++;
+        bidOwner[bidCounters] = BidData({
+            nftPostCounter: _nftPostCounter,
+            bidder: msg.sender,
+            nft: postOwner[_nftPostCounter].nft,
+            tokenId: postOwner[_nftPostCounter].tokenId,
+            amount: value,
+            bidTime: block.timestamp
+        });
+        listBidCounter[msg.sender].push(bidCounters);
+        postOwner[_nftPostCounter].bidConters++;
+        // Update Highest Bid
+        euint32 currentHightestBid = highestBidAmount[_nftPostCounter];
         ebool isHigher = TFHE.lt(currentHightestBid, value);
         if (TFHE.decrypt(isHigher)) {
-            highestBid[nft][tokenId] = value;
+            highestBidAmount[_nftPostCounter] = value;
+            highestBidder[_nftPostCounter] = msg.sender;
         }
-        highestBidder[nft][tokenId] = msg.sender;
+        // Transfer bid token to contract
+        paymentToken.transferFrom(msg.sender, address(this), value);
     }
 
-    // get Bid user by tokenId and address
-    function getBidOfUser(
-        IERC721 nft,
-        uint256 tokenId,
-        address user
-    ) internal view returns (BidData memory) {
-        BidData[] memory bids = bidUsers[user];
-        for (uint256 i = 0; i < bids.length; i++) {
-            if (
-                bids[i].bidder == user &&
-                bids[i].nft == nft &&
-                bids[i].tokenId == tokenId
-            ) {
-                return bids[i];
-            }
-        }
-        return
-            BidData({
-                bidder: address(0),
-                nft: IERC721(address(0)),
-                tokenId: 0,
-                amount: TFHE.asEuint32(0),
-                timstamp: 0
-            });
-    }
-
-    function resetNFt(address user, IERC721 nft, uint256 tokenId) internal {
-        //  Remove Post
-        nftPostOwner[nft][tokenId] = address(0);
-        nftEndTime[nft][tokenId] = 0;
-        highestBidder[nft][tokenId] = address(0);
-        highestBid[nft][tokenId] = TFHE.asEuint32(0);
-        manualEndBid[nft][tokenId] = false;
-        isAddedPostNFTid[nft][tokenId] = false;
-        counters[nft][tokenId] = 0;
-        // remove nft
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 _nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[_nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (_nft == nft && _tokenIds[j] == tokenId) {
-                    delete tokenIds[_nft][j];
-                }
-            }
-        }
-        // Remove Bid amount
-        bidAmount[user][nft][tokenId] = TFHE.asEuint32(0);
-        isBiddedNFT[user][nft][tokenId] = false;
-        // Remove Bid data
-        for (uint i = 0; i < bidUsers[user].length; i++) {
-            BidData memory bidDetail = bidUsers[user][i];
-            if (bidDetail.nft == nft && bidDetail.tokenId == tokenId) {
-                delete bidUsers[user][i];
-            }
-        }
-        // Remove Post NFt if no have token id
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 _nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[_nft];
-            if (_tokenIds.length == 0) {
-                delete postNFTs[i];
-            }
-        }
-    }
-
-    // Refund for loser
-    function refund(
-        IERC721 nft,
-        uint256 tokenId
-    ) internal onlyAfterEnd(nft, tokenId) {
-        require(
-            highestBidder[nft][tokenId] != msg.sender,
-            "Only loser can call this function"
-        );
-        BidData memory existingBidData = getBidOfUser(nft, tokenId, msg.sender);
-        require(
-            existingBidData.bidder != address(0),
-            "User not bid for this NFT"
-        );
-        paymentToken.transfer(msg.sender, existingBidData.amount);
-    }
-
-    // Lidy bid user
-    function bidOwnerOf(
-        IERC721 nft,
-        uint256 tokenId,
-        bytes32 publicKey,
-        bytes calldata signature
-    )
-        external
-        view
-        onlySignedPublicKey(publicKey, signature)
-        returns (address)
-    {
-        return nftPostOwner[nft][tokenId];
-    }
-
-    function getHidgerBidder(
-        IERC721 nft,
-        uint256 tokenId
-    ) external view onlyAfterEnd(nft, tokenId) returns (address) {
-        return highestBidder[nft][tokenId];
-    }
-
-    // Claim All winer NFT by address
     function claimAllNFT() external {
         // 1. Claim Post NFT not have bid
         NFT[] memory postNFTsEnded = listPostNFTEnded(msg.sender);
-        for (uint i = 0; i < postNFTs.length; i++) {
-            postNFTsEnded[i].nft.transferFrom(
+        euint32 totalBidAmount = TFHE.asEuint32(0);
+        for (uint i = 0; i < postNFTsEnded.length; i++) {
+            totalBidAmount = TFHE.add(
+                totalBidAmount,
+                highestBidAmount[postNFTsEnded[i].postCounter]
+            );
+            postOwnerClaimed[postNFTsEnded[i].postCounter] = msg.sender;
+        }
+        if (TFHE.decrypt(TFHE.gt(totalBidAmount, TFHE.asEuint32(0)))) {
+            paymentToken.transferFrom(
                 address(this),
                 msg.sender,
-                postNFTsEnded[i].tokenId
-            );
-            resetNFt(
-                msg.sender,
-                postNFTsEnded[i].nft,
-                postNFTsEnded[i].tokenId
+                totalBidAmount
             );
         }
+
         // 2. Claim Winner NFT
-        NFT[] memory winerNFTs = listNFTBidAndWin(msg.sender);
-        for (uint i = 0; i < winerNFTs.length; i++) {
-            winerNFTs[i].nft.transferFrom(
+        NFT[] memory winnerNFTs = listNFTBidAndWin(msg.sender);
+        for (uint i = 0; i < winnerNFTs.length; i++) {
+            winnerNFTs[i].nft.transferFrom(
                 address(this),
                 msg.sender,
-                winerNFTs[i].tokenId
+                winnerNFTs[i].tokenId
             );
-            resetNFt(msg.sender, winerNFTs[i].nft, winerNFTs[i].tokenId);
+            isPostNFT[msg.sender][winnerNFTs[i].nft][
+                winnerNFTs[i].tokenId
+            ] = false;
+            winnerClaimed[winnerNFTs[i].postCounter] = msg.sender;
         }
+
         // 3. Refund Not winner NFT
         NFT[] memory loserNFTs = listNFTBidAndLose(msg.sender);
         euint32 totalRefund = TFHE.asEuint32(0);
         for (uint i = 0; i < loserNFTs.length; i++) {
             totalRefund = TFHE.add(
                 totalRefund,
-                bidAmount[msg.sender][loserNFTs[i].nft][loserNFTs[i].tokenId]
+                bidOwner[loserNFTs[i].postCounter].amount
             );
-            resetNFt(msg.sender, loserNFTs[i].nft, loserNFTs[i].tokenId);
+            isLoserRefund[loserNFTs[i].postCounter][msg.sender] = true;
         }
         if (TFHE.decrypt(TFHE.gt(totalRefund, TFHE.asEuint32(0)))) {
             paymentToken.transferFrom(address(this), msg.sender, totalRefund);
@@ -313,13 +224,11 @@ contract BlindAuction is EIP712WithModifier {
         address user
     ) internal view returns (NFT[] memory) {
         uint count = 0;
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (isPostNFTEnded(user, nft, _tokenIds[j])) {
-                    count++;
-                }
+        uint[] memory _listPostCounter = listPostCounter[user];
+
+        for (uint i = 0; i < _listPostCounter.length; i++) {
+            if (isPostNFTEnded(user, _listPostCounter[i])) {
+                count++;
             }
         }
 
@@ -328,31 +237,30 @@ contract BlindAuction is EIP712WithModifier {
         uint index = 0;
 
         // Populate the array with valid NFTs
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (isPostNFTEnded(user, nft, _tokenIds[j])) {
-                    nftList[index] = nftDetail(nft, _tokenIds[j]);
-                    index++;
-                }
+        for (uint i = 0; i < _listPostCounter.length; i++) {
+            if (isPostNFTEnded(user, _listPostCounter[i])) {
+                nftList[index] = postOwner[_listPostCounter[i]];
+                index++;
             }
         }
         return nftList;
     }
 
-    // List NFT Bid and win by address
     function listNFTBidAndWin(
         address user
     ) internal view returns (NFT[] memory) {
+        uint[] memory _bidCounters = listBidCounter[user];
         uint count = 0;
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (isWinnerNFT(user, nft, _tokenIds[j])) {
-                    count++;
-                }
+
+        // First, count the number of NFTs the user has won
+        for (uint i = 0; i < _bidCounters.length; i++) {
+            if (
+                isWinnerNFT(
+                    _bidCounters[i],
+                    bidOwner[_bidCounters[i]].nftPostCounter
+                )
+            ) {
+                count++;
             }
         }
 
@@ -360,32 +268,38 @@ contract BlindAuction is EIP712WithModifier {
         NFT[] memory nftList = new NFT[](count);
         uint index = 0;
 
-        // Populate the array with valid NFTs
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (isWinnerNFT(user, nft, _tokenIds[j])) {
-                    nftList[index] = nftDetail(nft, _tokenIds[j]);
-                    index++;
-                }
+        // Populate the array with the NFTs the user has won
+        for (uint i = 0; i < _bidCounters.length; i++) {
+            if (
+                isWinnerNFT(
+                    _bidCounters[i],
+                    bidOwner[_bidCounters[i]].nftPostCounter
+                )
+            ) {
+                uint nftPostCounter = bidOwner[_bidCounters[i]].nftPostCounter;
+                nftList[index] = postOwner[nftPostCounter];
+                index++;
             }
         }
+
         return nftList;
     }
 
-    // List NFT Bid and lose
     function listNFTBidAndLose(
         address user
     ) internal view returns (NFT[] memory) {
+        uint[] memory _bidCounters = listBidCounter[user];
         uint count = 0;
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (isLoserNFT(user, nft, _tokenIds[j])) {
-                    count++;
-                }
+
+        // First, count the number of NFTs the user has lost
+        for (uint i = 0; i < _bidCounters.length; i++) {
+            if (
+                isLoserNFT(
+                    _bidCounters[i],
+                    bidOwner[_bidCounters[i]].nftPostCounter
+                )
+            ) {
+                count++;
             }
         }
 
@@ -393,56 +307,56 @@ contract BlindAuction is EIP712WithModifier {
         NFT[] memory nftList = new NFT[](count);
         uint index = 0;
 
-        // Populate the array with valid NFTs
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (isLoserNFT(user, nft, _tokenIds[j])) {
-                    nftList[index] = nftDetail(nft, _tokenIds[j]);
-                    index++;
-                }
+        // Populate the array with the NFTs the user has lost
+        for (uint i = 0; i < _bidCounters.length; i++) {
+            if (
+                isLoserNFT(
+                    _bidCounters[i],
+                    bidOwner[_bidCounters[i]].nftPostCounter
+                )
+            ) {
+                uint nftPostCounter = bidOwner[_bidCounters[i]].nftPostCounter;
+                nftList[index] = postOwner[nftPostCounter];
+                index++;
             }
         }
+
         return nftList;
     }
 
     function isPostNFTEnded(
         address postAddress,
-        IERC721 nft,
-        uint256 tokenId
+        uint _nftPostCounter
     ) internal view returns (bool) {
         return
-            nftPostOwner[nft][tokenId] == postAddress &&
-            isNFTBidEnded(nft, tokenId);
+            postOwner[_nftPostCounter].postOwner == postAddress &&
+            highestBidder[_nftPostCounter] != address(0) &&
+            postOwnerClaimed[_nftPostCounter] == address(0) &&
+            isNFTBidEnded(_nftPostCounter);
     }
 
     function isWinnerNFT(
-        address bidAdddress,
-        IERC721 nft,
-        uint256 tokenId
+        uint _bidCounter,
+        uint _nftPostCounter
     ) internal view returns (bool) {
         return
-            highestBidder[nft][tokenId] == bidAdddress &&
-            isNFTBidEnded(nft, tokenId);
+            highestBidder[_nftPostCounter] == bidOwner[_bidCounter].bidder &&
+            winnerClaimed[_nftPostCounter] == address(0) &&
+            isNFTBidEnded(_nftPostCounter);
     }
 
     function isLoserNFT(
-        address bidAdddress,
-        IERC721 nft,
-        uint256 tokenId
+        uint _bidCounter,
+        uint _nftPostCounter
     ) internal view returns (bool) {
         return
-            isBiddedNFT[bidAdddress][nft][tokenId] &&
-            highestBidder[nft][tokenId] != bidAdddress &&
-            isNFTBidEnded(nft, tokenId);
+            highestBidder[_nftPostCounter] != bidOwner[_bidCounter].bidder &&
+            !isLoserRefund[_nftPostCounter][bidOwner[_bidCounter].bidder] &&
+            isNFTBidEnded(_nftPostCounter);
     }
 
-    function isNFTBidEnded(
-        IERC721 nft,
-        uint256 tokenId
-    ) internal view returns (bool) {
-        return block.timestamp > nftEndTime[nft][tokenId];
+    function isNFTBidEnded(uint _nftPostCounter) internal view returns (bool) {
+        return block.timestamp > postOwner[_nftPostCounter].endTime;
     }
 
     /**
@@ -452,13 +366,12 @@ contract BlindAuction is EIP712WithModifier {
         uint count = 0;
 
         // First, count the number of valid NFTs
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (block.timestamp < nftEndTime[nft][_tokenIds[j]]) {
-                    count++;
-                }
+        for (uint i = 1; i <= postCounters; i++) {
+            if (
+                block.timestamp < postOwner[i].endTime &&
+                postOwnerClaimed[i] == address(0)
+            ) {
+                count++;
             }
         }
 
@@ -467,30 +380,27 @@ contract BlindAuction is EIP712WithModifier {
         uint index = 0;
 
         // Populate the array with valid NFTs
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (block.timestamp < nftEndTime[nft][_tokenIds[j]]) {
-                    nftList[index] = nftDetail(nft, _tokenIds[j]);
-                    index++;
-                }
+        for (uint i = 1; i <= postCounters; i++) {
+            if (
+                block.timestamp < postOwner[i].endTime &&
+                winnerClaimed[i] == address(0)
+            ) {
+                nftList[index] = postOwner[i];
+                index++;
             }
         }
-
         return nftList;
     }
 
     function exploreEndingNFT() external view returns (NFT[] memory) {
         uint count = 0;
         // First, count the number of ending NFTs
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (block.timestamp > nftEndTime[nft][_tokenIds[j]]) {
-                    count++;
-                }
+        for (uint i = 1; i <= postCounters; i++) {
+            if (
+                block.timestamp > postOwner[i].endTime &&
+                winnerClaimed[i] == address(0)
+            ) {
+                count++;
             }
         }
 
@@ -499,32 +409,17 @@ contract BlindAuction is EIP712WithModifier {
         uint index = 0;
 
         // Populate the array with ending NFTs
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (block.timestamp > nftEndTime[nft][_tokenIds[j]]) {
-                    nftList[index] = nftDetail(nft, _tokenIds[j]);
-                    index++;
-                }
+        for (uint i = 1; i <= postCounters; i++) {
+            if (
+                block.timestamp > postOwner[i].endTime &&
+                winnerClaimed[i] == address(0)
+            ) {
+                nftList[index] = postOwner[i];
+                index++;
             }
         }
 
         return nftList;
-    }
-
-    function nftDetail(
-        IERC721 nft,
-        uint256 tokenId
-    ) public view returns (NFT memory) {
-        return
-            NFT({
-                postOwner: nftPostOwner[nft][tokenId],
-                nft: nft,
-                tokenId: tokenId,
-                endTime: nftEndTime[nft][tokenId],
-                bidConters: counters[nft][tokenId]
-            });
     }
 
     function allBidOf(
@@ -536,24 +431,24 @@ contract BlindAuction is EIP712WithModifier {
         onlySignedPublicKey(publicKey, signature)
         returns (BidDataStatus[] memory)
     {
-        BidData[] memory bids = bidUsers[msg.sender];
-        BidDataStatus[] memory bidStatus = new BidDataStatus[](bids.length);
-        for (uint i = 0; i < bids.length; i++) {
-            BidData memory newBid = bids[i];
-            bool isWinner = highestBidder[newBid.nft][newBid.tokenId] ==
-                msg.sender &&
-                block.timestamp > nftEndTime[newBid.nft][newBid.tokenId];
-            bytes memory amountEndcode = TFHE.reencrypt(
+        uint[] memory _bidCounter = listBidCounter[msg.sender];
+        BidDataStatus[] memory bidStatus = new BidDataStatus[](
+            _bidCounter.length
+        );
+        for (uint i = 0; i < _bidCounter.length; i++) {
+            BidData memory newBid = bidOwner[_bidCounter[i]];
+            bytes memory amountEncode = TFHE.reencrypt(
                 newBid.amount,
                 publicKey
             );
             bidStatus[i] = BidDataStatus({
+                nftPostCounter: newBid.nftPostCounter,
                 bidder: newBid.bidder,
                 nft: newBid.nft,
                 tokenId: newBid.tokenId,
-                amount: amountEndcode,
-                timstamp: newBid.timstamp,
-                isWinner: isWinner
+                amount: amountEncode,
+                bidTime: newBid.bidTime,
+                isWinner: highestBidder[newBid.nftPostCounter] == newBid.bidder
             });
         }
         return bidStatus;
@@ -568,13 +463,22 @@ contract BlindAuction is EIP712WithModifier {
         onlySignedPublicKey(publicKey, signature)
         returns (BidDataStatus[] memory)
     {
-        BidData[] memory bids = bidUsers[msg.sender];
+        BidData[] memory bids = listBidDataOfUser(msg.sender);
         uint count = countValidBids(bids);
-
         BidDataStatus[] memory bidStatus = new BidDataStatus[](count);
         populateBidStatus(bids, bidStatus, publicKey);
-
         return bidStatus;
+    }
+
+    function listBidDataOfUser(
+        address user
+    ) internal view returns (BidData[] memory) {
+        uint[] memory _bidCounter = listBidCounter[user];
+        BidData[] memory _bidData = new BidData[](_bidCounter.length);
+        for (uint i = 0; i < _bidCounter.length; i++) {
+            _bidData[i] = bidOwner[_bidCounter[i]];
+        }
+        return _bidData;
     }
 
     function countValidBids(
@@ -582,7 +486,7 @@ contract BlindAuction is EIP712WithModifier {
     ) internal view returns (uint) {
         uint count = 0;
         for (uint i = 0; i < bids.length; i++) {
-            if (block.timestamp < nftEndTime[bids[i].nft][bids[i].tokenId]) {
+            if (block.timestamp < postOwner[bids[i].nftPostCounter].endTime) {
                 count++;
             }
         }
@@ -597,18 +501,19 @@ contract BlindAuction is EIP712WithModifier {
         uint index = 0;
         for (uint i = 0; i < bids.length; i++) {
             BidData memory newBid = bids[i];
-            if (block.timestamp < nftEndTime[newBid.nft][newBid.tokenId]) {
+            if (block.timestamp < postOwner[newBid.nftPostCounter].endTime) {
                 bytes memory amountEncode = TFHE.reencrypt(
                     newBid.amount,
                     publicKey
                 );
 
                 bidStatus[index] = BidDataStatus({
+                    nftPostCounter: newBid.nftPostCounter,
                     bidder: newBid.bidder,
                     nft: newBid.nft,
                     tokenId: newBid.tokenId,
                     amount: amountEncode,
-                    timstamp: newBid.timstamp,
+                    bidTime: newBid.bidTime,
                     isWinner: false
                 });
 
@@ -626,34 +531,26 @@ contract BlindAuction is EIP712WithModifier {
         onlySignedPublicKey(publicKey, signature)
         returns (NFT[] memory)
     {
+        uint[] memory _listPostCounter = listPostCounter[msg.sender];
         // Count the number of NFTs owned by the sender
         uint count = 0;
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (nftPostOwner[nft][_tokenIds[j]] == msg.sender) {
-                    count++;
-                }
+        for (uint i = 0; i < _listPostCounter.length; i++) {
+            NFT memory nft = postOwner[_listPostCounter[i]];
+            if (winnerClaimed[nft.postCounter] == address(0)) {
+                count++;
             }
         }
-
         // Initialize the array with the correct size
         NFT[] memory nftList = new NFT[](count);
+        // Populate the array with valid NFTs
         uint index = 0;
-
-        // Populate the array with the sender's NFTs
-        for (uint i = 0; i < postNFTs.length; i++) {
-            IERC721 nft = postNFTs[i];
-            uint256[] memory _tokenIds = tokenIds[nft];
-            for (uint j = 0; j < _tokenIds.length; j++) {
-                if (nftPostOwner[nft][_tokenIds[j]] == msg.sender) {
-                    nftList[index] = nftDetail(nft, _tokenIds[j]);
-                    index++;
-                }
+        for (uint i = 0; i < _listPostCounter.length; i++) {
+            NFT memory nft = postOwner[_listPostCounter[i]];
+            if (winnerClaimed[nft.postCounter] == address(0)) {
+                nftList[index] = nft;
+                index++;
             }
         }
-
         return nftList;
     }
 
@@ -662,19 +559,20 @@ contract BlindAuction is EIP712WithModifier {
     function getBidsStatusOfAddress(
         address user
     ) internal view returns (BidSatus[] memory) {
-        BidData[] memory bids = bidUsers[user];
-        BidSatus[] memory bidStatus = new BidSatus[](bids.length);
-        for (uint i = 0; i < bids.length; i++) {
-            BidData memory newBid = bids[i];
-            bool isWinner = highestBidder[newBid.nft][newBid.tokenId] == user &&
-                block.timestamp > nftEndTime[newBid.nft][newBid.tokenId];
-            bidStatus[i] = BidSatus({
+        uint[] memory _bidCounter = listBidCounter[user];
+        BidSatus[] memory _bidStatus = new BidSatus[](_bidCounter.length);
+        for (uint i = 0; i < _bidCounter.length; i++) {
+            BidData memory newBid = bidOwner[_bidCounter[i]];
+            bool isWinner = highestBidder[newBid.nftPostCounter] == user &&
+                block.timestamp > postOwner[newBid.nftPostCounter].endTime;
+            _bidStatus[i] = BidSatus({
+                nftPostCounter: newBid.nftPostCounter,
                 nft: newBid.nft,
                 tokenId: newBid.tokenId,
                 isWinner: isWinner
             });
         }
-        return bidStatus;
+        return _bidStatus;
     }
 
     function bidsStatusByAddress(
