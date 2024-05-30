@@ -57,6 +57,8 @@ contract BlindAuction is EIP712WithModifier {
     // user address => nft address => tokenId => bidAmount
     mapping(address => mapping(IERC721 => mapping(uint256 => euint32)))
         internal bidAmount;
+    mapping(address => mapping(IERC721 => mapping(uint256 => bool)))
+        internal isBiddedNFT;
     // nfId => nftaddres => tokenId => address
     mapping(IERC721 => mapping(uint256 => address)) public highestBidder;
     // nftId => amount
@@ -126,16 +128,13 @@ contract BlindAuction is EIP712WithModifier {
     ) public onlyBeforeEnd(nft, tokenId) {
         require(nftPostOwner[nft][tokenId] != msg.sender, "Owner can't bid");
         require(nftPostOwner[nft][tokenId] != address(0), "Invalid token id");
-        ebool isBided = TFHE.gt(
-            bidAmount[msg.sender][nft][tokenId],
-            TFHE.asEuint32(0)
-        );
         require(
-            TFHE.decrypt(isBided) == false,
+            !isBiddedNFT[msg.sender][nft][tokenId],
             "User already bid for this NFT"
         );
         euint32 value = TFHE.asEuint32(encryptedValue);
         bidAmount[msg.sender][nft][tokenId] = value;
+        isBiddedNFT[msg.sender][nft][tokenId] = true;
         bidUsers[msg.sender].push(
             BidData({
                 bidder: msg.sender,
@@ -205,6 +204,7 @@ contract BlindAuction is EIP712WithModifier {
         }
         // Remove Bid amount
         bidAmount[user][nft][tokenId] = TFHE.asEuint32(0);
+        isBiddedNFT[user][nft][tokenId] = false;
         // Remove Bid data
         for (uint i = 0; i < bidUsers[user].length; i++) {
             BidData memory bidDetail = bidUsers[user][i];
@@ -433,12 +433,8 @@ contract BlindAuction is EIP712WithModifier {
         IERC721 nft,
         uint256 tokenId
     ) internal view returns (bool) {
-        ebool isBided = TFHE.gt(
-            bidAmount[bidAdddress][nft][tokenId],
-            TFHE.asEuint32(0)
-        );
         return
-            TFHE.decrypt(isBided) &&
+            isBiddedNFT[bidAdddress][nft][tokenId] &&
             highestBidder[nft][tokenId] != bidAdddress &&
             isNFTBidEnded(nft, tokenId);
     }
