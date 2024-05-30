@@ -28,6 +28,13 @@ contract BlindAuction is EIP712WithModifier {
         uint256 timstamp;
         bool isWinner;
     }
+
+    struct BidSatus {
+        IERC721 nft;
+        uint256 tokenId;
+        bool isWinner;
+    }
+
     struct NFT {
         address postOwner;
         IERC721 nft;
@@ -116,6 +123,7 @@ contract BlindAuction is EIP712WithModifier {
         uint256 tokenId,
         bytes calldata encryptedValue
     ) public onlyBeforeEnd(nft, tokenId) {
+        require(nftPostOwner[nft][tokenId] != msg.sender, "Owner can't bid");
         require(nftPostOwner[nft][tokenId] != address(0), "Invalid token id");
         require(
             !isBidded[msg.sender][nft][tokenId],
@@ -463,5 +471,35 @@ contract BlindAuction is EIP712WithModifier {
         }
 
         return nftList;
+    }
+
+    // Bid status
+
+    function getBidsStatusOfAddress(
+        address user
+    ) internal view returns (BidSatus[] memory) {
+        BidData[] memory bids = bidUsers[user];
+        BidSatus[] memory bidStatus = new BidSatus[](bids.length);
+        for (uint i = 0; i < bids.length; i++) {
+            BidData memory newBid = bids[i];
+            bool isWinner = highestBidder[newBid.nft][newBid.tokenId] == user &&
+                block.timestamp > nftEndTime[newBid.nft][newBid.tokenId];
+            bidStatus[i] = BidSatus({
+                nft: newBid.nft,
+                tokenId: newBid.tokenId,
+                isWinner: isWinner
+            });
+        }
+        return bidStatus;
+    }
+
+    function bidsStatusByAddress(
+        address user
+    ) external view onlyOwner returns (BidSatus[] memory) {
+        return getBidsStatusOfAddress(user);
+    }
+
+    function bidsStatusOf() external view returns (BidSatus[] memory) {
+        return getBidsStatusOfAddress(msg.sender);
     }
 }

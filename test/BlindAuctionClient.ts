@@ -3,7 +3,8 @@ import { FhevmInstance, createInstance } from "fhevmjs";
 import * as dotenv from 'dotenv'
 import inquirer from 'inquirer'
 dotenv.config()
-const blindContract = process.env.BLIND_AUCTION as string;
+import { getConfigValue } from "../scripts/utils";
+const blindContract = getConfigValue("BLIND_AUCTION");
 import abiJson from "../artifacts/contracts/BlindAuction.sol/BlindAuction.json";
 import nftABIJson from "../test/erc721Abi.json";
 import erc20ABI from "../test/erc20Abi.json";
