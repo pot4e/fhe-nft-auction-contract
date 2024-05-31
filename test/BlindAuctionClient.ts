@@ -260,7 +260,9 @@ async function checkClaimPost() {
     const data = await contract.isClaimable();
     console.log(data);
     if (data) {
-        const tx = await contract.claimAllNFT();
+        const tx = await contract.claimAllNFT({
+            gasLimit: 5000000
+        });
         await tx.wait();
         console.log("Claimed: ", tx.hash);
     }

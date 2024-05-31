@@ -177,11 +177,7 @@ contract BlindAuction is EIP712WithModifier {
             postOwnerClaimed[postNFTsEnded[i].postCounter] = msg.sender;
         }
         if (TFHE.decrypt(TFHE.gt(totalBidAmount, TFHE.asEuint32(0)))) {
-            paymentToken.transferFrom(
-                address(this),
-                msg.sender,
-                totalBidAmount
-            );
+            paymentToken.transfer(msg.sender, totalBidAmount);
         }
 
         // 2. Claim Winner NFT
@@ -209,7 +205,7 @@ contract BlindAuction is EIP712WithModifier {
             isLoserRefund[loserNFTs[i].postCounter][msg.sender] = true;
         }
         if (TFHE.decrypt(TFHE.gt(totalRefund, TFHE.asEuint32(0)))) {
-            paymentToken.transferFrom(address(this), msg.sender, totalRefund);
+            paymentToken.transfer(msg.sender, totalRefund);
         }
     }
 
