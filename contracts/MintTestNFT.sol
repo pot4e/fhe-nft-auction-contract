@@ -30,8 +30,9 @@ contract MintTestNFT is Ownable {
         require(!isStopClaiming, "Claiming is stopped");
         require(testNFTs.length > 0, "No test NFTs available");
         require(
-            mintCountMap[msg.sender] < 3 ||
-                block.timestamp - lastTimesMintMap[msg.sender] >= claimGap,
+            mintCountMap[msg.sender] < 3
+            || block.timestamp - lastTimesMintMap[msg.sender] >= claimGap
+            || msg.sender == owner(),
             "You can only claim 3 test NFTs every 12h"
         );
         _;
@@ -40,7 +41,8 @@ contract MintTestNFT is Ownable {
     modifier canClaimTestToken() {
         require(!isStopClaiming, "Claiming is stopped");
         require(
-            block.timestamp - lastTimesClaimTokenMap[msg.sender] >= claimGap,
+            block.timestamp - lastTimesClaimTokenMap[msg.sender] >= claimGap
+            || msg.sender == owner(),
             "You can only claim test Token every 12h"
         );
         _;

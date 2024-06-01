@@ -8,7 +8,7 @@ import * as _ from 'lodash';
 
 (async () => {
     const nftSymbols = Object.keys(config.NFT);
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 100; i++) {
         const symbol = _.sample(nftSymbols);
         const [owner] = await hre.ethers.getSigners();
         const contractType = 'IncoNFT';
