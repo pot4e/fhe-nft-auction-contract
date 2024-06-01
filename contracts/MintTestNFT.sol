@@ -76,7 +76,7 @@ contract MintTestNFT is Ownable {
         }
         euint32 value = TFHE.asEuint32(150);
         // Transfer bid token to user
-        paymentToken.transferFrom(address(this), msg.sender, value);
+        paymentToken.transfer(msg.sender, value);
     }
 
 }
