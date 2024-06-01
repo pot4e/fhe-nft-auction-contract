@@ -8,7 +8,6 @@ import "./EncryptedERC20.sol";
 import "fhevm/lib/TFHE.sol";
 
 contract MintTestNFT is Ownable {
-
     struct NFT {
         IERC721Enumerable nft;
         uint256 tokenId;
@@ -18,10 +17,10 @@ contract MintTestNFT is Ownable {
     NFT[] public testNFTs;
     bool public isStopClaiming = false;
     uint256 public claimGap = 12 * 3600; // 12 hours
-    
-    mapping (address => uint256) public mintCountMap;
-    mapping (address => uint256) public lastTimesMintMap;
-    mapping (address => uint256) public lastTimesClaimTokenMap;
+
+    mapping(address => uint256) public mintCountMap;
+    mapping(address => uint256) public lastTimesMintMap;
+    mapping(address => uint256) public lastTimesClaimTokenMap;
 
     constructor(EncryptedERC20 _paymentToken) {
         paymentToken = _paymentToken;
@@ -30,13 +29,20 @@ contract MintTestNFT is Ownable {
     modifier canClaimNFT() {
         require(!isStopClaiming, "Claiming is stopped");
         require(testNFTs.length > 0, "No test NFTs available");
-        require(mintCountMap[msg.sender] < 3 || block.timestamp - lastTimesMintMap[msg.sender] >= claimGap, "You can only claim 3 test NFTs every 12h");
+        require(
+            mintCountMap[msg.sender] < 3 ||
+                block.timestamp - lastTimesMintMap[msg.sender] >= claimGap,
+            "You can only claim 3 test NFTs every 12h"
+        );
         _;
     }
 
     modifier canClaimTestToken() {
         require(!isStopClaiming, "Claiming is stopped");
-        require(block.timestamp - lastTimesClaimTokenMap[msg.sender] >= claimGap, "You can only claim test Token every 12h");
+        require(
+            block.timestamp - lastTimesClaimTokenMap[msg.sender] >= claimGap,
+            "You can only claim test Token every 12h"
+        );
         _;
     }
 
@@ -45,7 +51,10 @@ contract MintTestNFT is Ownable {
         isStopClaiming = _isStopClaiming;
     }
 
-    function addMoreTestNFTs(IERC721Enumerable nft, uint256 tokenId) external onlyOwner {
+    function addMoreTestNFTs(
+        IERC721Enumerable nft,
+        uint256 tokenId
+    ) external onlyOwner {
         require(
             nft.ownerOf(tokenId) == msg.sender,
             "You are not owner of this NFT"
@@ -65,19 +74,21 @@ contract MintTestNFT is Ownable {
         } else {
             mintCountMap[msg.sender] += 1;
         }
-        uint rndIndex = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender))) % testNFTs.length; // random 1-10 tokens
+        uint rndIndex = uint(
+            keccak256(abi.encodePacked(block.timestamp, msg.sender))
+        ) % testNFTs.length; // random 1-10 tokens
         NFT memory iNFT = testNFTs[rndIndex];
         iNFT.nft.transferFrom(address(this), msg.sender, iNFT.tokenId);
+        // remove minted NFT from testNFTs
+        testNFTs[rndIndex] = testNFTs[testNFTs.length - 1];
+        testNFTs.pop();
     }
 
     function claimTestToken() external canClaimTestToken {
         if (block.timestamp - lastTimesClaimTokenMap[msg.sender] >= claimGap) {
             lastTimesClaimTokenMap[msg.sender] = block.timestamp;
         }
-        euint32 value = TFHE.asEuint32(150);
         // Transfer bid token to user
-        paymentToken.transfer(msg.sender, value);
+        paymentToken.transfer(msg.sender, TFHE.asEuint32(150));
     }
-
 }
-

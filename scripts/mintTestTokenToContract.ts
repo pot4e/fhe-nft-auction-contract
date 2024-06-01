@@ -17,17 +17,17 @@ import { getSigners } from "../test/signers";
         process.exit(1);
     }
     const recipient = config.MintTestNFT;
-    const contract = await ethers.getContractAt(contractType, tokenAddress);
+    const contract = await ethers.getContractAt(contractType, tokenAddress, owner);
     console.log(`Minting Token to ${recipient}`);
     try {
         const instances = await createInstances(tokenAddress, ethers, await getSigners(ethers));
         const encryptedAmount = instances.owner.encrypt32(Number(10_000_000));
         const tx = await contract.mint(encryptedAmount);
         await tx.wait();
-        console.log(`Minted 10_000_000 tokens to ${owner.address}`);
-        const txTransfer1 = await contract["transfer(address,bytes)"](recipient, instances.owner.encrypt32(10000000));
+        const txTransfer1 = await contract["transfer(address,bytes)"](recipient, encryptedAmount);
         await txTransfer1.wait();
         console.log(`Transfer 10m tokens to ${recipient}`, txTransfer1.hash);
+        console.log(`Minted 10_000_000 tokens to ${owner.address}`);
     } catch (e) {
         console.error("Error minting NFT: ", e);
     }
