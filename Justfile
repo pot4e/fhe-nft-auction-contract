@@ -7,6 +7,9 @@ deployNFTSample:
 deploy-erc20-encrypted:
     npx hardhat run deploy/EncryptedERC20.ts --network inco 
 
+deploy-nft-blind-auction:
+    npx hardhat run deploy/BlindAuction.ts --network inco 
+
 deploy-mint-testnft:
     npx hardhat run deploy/MintTestNFT.ts --network inco
 
