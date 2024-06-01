@@ -32,7 +32,7 @@ const createFhevmInstance = async () => {
     instance = await createInstance({ chainId, publicKey });
 };
 
-export const getTokenSignature = async (contractAddress: string, wallet: ethers.Wallet) => {
+const getTokenSignature = async (contractAddress: string, wallet: ethers.Wallet) => {
     const eip712Domain = {
         // This defines the network, in this case, Gentry Testnet.
         chainId: 9090,
@@ -59,7 +59,7 @@ export const getTokenSignature = async (contractAddress: string, wallet: ethers.
     return { signature, publicKey };
 };
 
-async function erc20Balance(wallet: ethers.Wallet): Promise<number> {
+export async function erc20Balance(wallet: ethers.Wallet): Promise<number> {
     const contract = new ethers.Contract(process.env.ERC_20 as string, erc20ABI, wallet);
     const { publicKey, signature } = await getTokenSignature(
         process.env.ERC_20 as string,
