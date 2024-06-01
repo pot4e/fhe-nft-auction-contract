@@ -12,3 +12,12 @@ checkBidsStatusByOwnerContract ADDRESS:
 
 checkYourStatus ADDRESS:
     address={{ADDRESS}} npx ts-node scripts/checkYourBidsStatus.ts
+
+mintTestTokenToContract:
+    npx hardhat run scripts/mintTestTokenToContract.ts --network inco
+
+bulkProvideNFTs:
+    npx hardhat run scripts/bulkProvideSampleNFTs.ts --network inco
+
+claimTest TYPE='nft':
+    type={{TYPE}} npx hardhat run scripts/claimTest.ts --network inco
